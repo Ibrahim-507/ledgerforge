@@ -1,0 +1,8 @@
+# Optional: a local PostgreSQL for development.  Run:  docker compose -f docker-compose.dev.yml up -d
+services:
+  db:
+    image: postgres:16
+    environment: { POSTGRES_USER: ledger, POSTGRES_PASSWORD: ledger, POSTGRES_DB: ledgerforge }
+    ports: ["5432:5432"]
+    volumes: [ledger_pg:/var/lib/postgresql/data]
+volumes: { ledger_pg: {} }
