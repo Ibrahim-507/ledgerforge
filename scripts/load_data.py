@@ -38,4 +38,25 @@ def read_clean(name, date_cols, bool_cols):
 def main():
     data = {name: read_clean(name, d, b) for name, _, d, b in TABLES}
 
-    with Session(engine) as session,
+    with Session(engine) as session, session.begin():  # all or nothing
+        for _, model, _, _ in reversed(TABLES):        # clear children first
+            session.execute(delete(model))
+        for name, model, _, _ in TABLES:               # load parents first
+            print(f"Loading {name}...")
+            session.bulk_insert_mappings(model, data[name].to_dict("records"))
+            # raise RuntimeError("test failure")       # failure test: remove the # to test, then put it back
+
+    # Count check: database vs CSV
+    ok = True
+    print(f"{'table':<24}{'csv':>8}{'db':>8}  status")
+    with Session(engine) as session:
+        for name, model, _, _ in TABLES:
+            db_count = session.scalar(select(func.count()).select_from(model))
+            match = db_count == len(data[name])
+            ok &= match
+            print(f"{name:<24}{len(data[name]):>8}{db_count:>8}  {'OK' if match else 'MISMATCH'}")
+    sys.exit(0 if ok else 1)
+
+
+if __name__ == "__main__":
+    main()
