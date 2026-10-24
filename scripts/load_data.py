@@ -1,5 +1,6 @@
 """Load the company CSVs into the database. Safe to run again and again."""
 import sys
+from decimal import Decimal
 from pathlib import Path
 
 import pandas as pd
@@ -8,7 +9,16 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import engine
-from app.models import Department, Employee, EmployeeAssignment, Role
+from app.models import (
+    Department,
+    Employee,
+    EmployeeAssignment,
+    Role,
+     SalaryComponent,
+    SalaryRevision,
+    SalaryStructure,
+   
+)
 
 # Loading order: parents first. Employees need departments and roles to exist.
 # (csv name, model, date columns, yes/no columns)
@@ -19,7 +29,17 @@ TABLES = [
      ["date_of_birth", "hire_date", "exit_date", "resignation_date", "created_at"],
      ["pf_applicable", "esi_applicable"]),
     ("employee_assignments", EmployeeAssignment, ["effective_from", "effective_to"], []),
+     ("salary_components", SalaryComponent, [], ["taxable", "is_fixed"]),
+    ("salary_revisions", SalaryRevision, ["effective_from", "created_at"], []),
+    ("salary_structures", SalaryStructure, ["effective_from", "effective_to"], []),
+       
 ]
+
+# Money columns are loaded as Decimal, never float.
+DECIMAL_COLS = {
+    "salary_revisions": ["previous_annual_fixed", "new_annual_fixed", "pct_change"],
+    "salary_structures": ["monthly_amount"],
+}
 
 YES_NO = {"true": True, "yes": True, "y": True, "1": True,
           "false": False, "no": False, "n": False, "0": False}
@@ -31,6 +51,8 @@ def read_clean(name, date_cols, bool_cols):
         df[c] = pd.to_datetime(df[c], errors="coerce").dt.date
     for c in bool_cols:
         df[c] = df[c].astype(str).str.strip().str.lower().map(YES_NO)
+    for c in DECIMAL_COLS.get(name, []):
+        df[c] = df[c].map(lambda v: None if pd.isna(v) else Decimal(str(v)))
     df = df.astype(object)
     return df.where(df.notna(), None)  # empty cells become None
 

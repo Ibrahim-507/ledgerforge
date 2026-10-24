@@ -84,3 +84,45 @@ class EmployeeAssignment(Base):
     change_reason = Column(String(200))
 
     __table_args__ = (Index("ix_assignment_dates", "effective_from", "effective_to"),)
+
+
+class SalaryComponent(Base):
+    __tablename__ = "salary_components"
+
+    component_id = Column(String(30), primary_key=True)
+    component_name = Column(String(100), nullable=False)
+    component_type = Column(String(30), nullable=False)
+    taxable = Column(Boolean)
+    calculation_rule = Column(String(200))
+    is_fixed = Column(Boolean)
+
+
+class SalaryRevision(Base):
+    __tablename__ = "salary_revisions"
+
+    revision_id = Column(String(20), primary_key=True)
+    employee_id = Column(String(20), ForeignKey("employees.employee_id"), nullable=False, index=True)
+    effective_from = Column(Date, nullable=False)
+    revision_reason = Column(String(100), nullable=False)
+    previous_annual_fixed = Column(Numeric(14, 2))  # empty for the Joining revision
+    new_annual_fixed = Column(Numeric(14, 2), nullable=False)
+    pct_change = Column(Numeric(8, 2))
+    role_id_after = Column(String(20), ForeignKey("roles.role_id"))
+    approved_by = Column(String(50))
+    created_at = Column(Date)
+
+
+class SalaryStructure(Base):
+    __tablename__ = "salary_structures"
+
+    structure_id = Column(String(20), primary_key=True)
+    employee_id = Column(String(20), ForeignKey("employees.employee_id"), nullable=False, index=True)
+    component_id = Column(String(30), nullable=False)
+    component_name = Column(String(100), nullable=False)
+    component_type = Column(String(30))
+    monthly_amount = Column(Numeric(12, 2), nullable=False)
+    effective_from = Column(Date, nullable=False)
+    effective_to = Column(Date)  # empty for the current row
+    revision_id = Column(String(20), ForeignKey("salary_revisions.revision_id"), index=True)
+
+    __table_args__ = (Index("ix_structure_lookup", "employee_id", "effective_from", "effective_to"),)
