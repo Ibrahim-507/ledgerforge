@@ -124,5 +124,71 @@ class SalaryStructure(Base):
     effective_from = Column(Date, nullable=False)
     effective_to = Column(Date)  # empty for the current row
     revision_id = Column(String(20), ForeignKey("salary_revisions.revision_id"), index=True)
-
     __table_args__ = (Index("ix_structure_lookup", "employee_id", "effective_from", "effective_to"),)
+   
+    from datetime import date, time
+from decimal import Decimal
+from sqlalchemy import Date, ForeignKey, Numeric, String, Text, Time
+from sqlalchemy.orm import Mapped, mapped_column
+
+
+class LeaveType(Base):
+    __tablename__ = "leave_types"
+    leave_type_code: Mapped[str] = mapped_column(String(10), primary_key=True)
+    leave_type_name: Mapped[str] = mapped_column(String(80))
+    pay_type: Mapped[str] = mapped_column(String(20))
+    annual_quota_days: Mapped[int]
+    prorated_for_joiners: Mapped[bool]
+    carry_forward_allowed: Mapped[bool]
+    max_carry_forward_days: Mapped[int]
+    policy_note: Mapped[str | None] = mapped_column(Text)
+
+class Holiday(Base):
+    __tablename__ = "holidays"
+    holiday_date: Mapped[date] = mapped_column(Date, primary_key=True)
+    holiday_name: Mapped[str] = mapped_column(String(120))
+    holiday_type: Mapped[str] = mapped_column(String(30))
+    falls_on_weekend: Mapped[bool]
+
+class Attendance(Base):
+    __tablename__ = "attendance"
+    attendance_id: Mapped[str] = mapped_column(String(20), primary_key=True)
+    employee_id: Mapped[str] = mapped_column(ForeignKey("employees.employee_id"), index=True)
+    attendance_date: Mapped[date] = mapped_column(Date, index=True)
+    status: Mapped[str] = mapped_column(String(20))
+    leave_type_code: Mapped[str | None] = mapped_column(String(10))
+    check_in: Mapped[time | None] = mapped_column(Time)
+    check_out: Mapped[time | None] = mapped_column(Time)
+    hours_worked: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
+    overtime_hours: Mapped[Decimal] = mapped_column(Numeric(5, 2))
+    late_flag: Mapped[bool]
+    data_quality_flag: Mapped[str | None] = mapped_column(String(30))
+
+class LeaveRequest(Base):
+    __tablename__ = "leave_requests"
+    leave_request_id: Mapped[str] = mapped_column(String(20), primary_key=True)
+    employee_id: Mapped[str] = mapped_column(ForeignKey("employees.employee_id"), index=True)
+    leave_type_code: Mapped[str] = mapped_column(ForeignKey("leave_types.leave_type_code"))
+    start_date: Mapped[date] = mapped_column(Date)
+    end_date: Mapped[date] = mapped_column(Date)
+    days: Mapped[Decimal] = mapped_column(Numeric(4, 1))
+    reason: Mapped[str | None] = mapped_column(String(255))
+    status: Mapped[str] = mapped_column(String(20))
+    applied_on: Mapped[date | None] = mapped_column(Date)
+    approver_id: Mapped[str | None] = mapped_column(String(20))
+    decided_on: Mapped[date | None] = mapped_column(Date)
+
+class LeaveBalance(Base):
+    __tablename__ = "leave_balances"
+    employee_id: Mapped[str] = mapped_column(ForeignKey("employees.employee_id"), primary_key=True)
+    as_of_date: Mapped[date] = mapped_column(Date)
+    financial_year: Mapped[str] = mapped_column(String(12))
+    cl_entitlement: Mapped[Decimal] = mapped_column(Numeric(5, 1))
+    cl_used: Mapped[Decimal] = mapped_column(Numeric(5, 1))
+    cl_balance: Mapped[Decimal] = mapped_column(Numeric(5, 1))
+    sl_entitlement: Mapped[Decimal] = mapped_column(Numeric(5, 1))
+    sl_used: Mapped[Decimal] = mapped_column(Numeric(5, 1))
+    sl_balance: Mapped[Decimal] = mapped_column(Numeric(5, 1))
+    el_used_fy: Mapped[Decimal] = mapped_column(Numeric(5, 1))
+    el_balance: Mapped[Decimal] = mapped_column(Numeric(5, 1))
+    pending_days: Mapped[Decimal] = mapped_column(Numeric(5, 1))c   
