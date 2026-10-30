@@ -1,19 +1,17 @@
-
 from decimal import Decimal
 
 import pytest
 
 from app.attendance_service import monthly_summary
-from app.database import SessionLocal  # use the same import as in scripts/seed_time.py
+from app.database import SessionLocal  # same import as in scripts/seed_time.py
 
-# Hand counts from my Excel "handcount" sheet.
+# Hand counts from my Excel "handcounts" sheet.
 # (employee, year, month, present, wfh, paid_leave, lop, late, overtime, missing_checkout)
-# lop = UNPAID_LEAVE + ABSENT_LOP + 0.5 * HALF_DAY_UNPAID   (Excel columns J + K + 0.5 * L)
-# Replace None with your counted numbers for the two other employees.
+# lop = UNPAID_LEAVE + ABSENT_LOP + 0.5 * HALF_DAY_UNPAID  (Excel columns J + K + 0.5 * L)
 HAND_COUNTS = [
     ("EMP-0004", 2025, 9, 10, 11, 1, 0, 0, 0, 1),
-    ("EMP-0026", 2025, 10, None, None, None, None, None, None, None),
-    ("EMP-0012", 2026, 2, None, None, None, None, None, None, None),
+    ("EMP-0026", 2025, 10, 8, 12, 0, 0, 1, 0, 1),
+    ("EMP-0012", 2026, 2, 19, 0, 1, 0, 2, 0, 1),
 ]
 
 
@@ -29,8 +27,6 @@ def session():
 def test_summary_matches_hand_count(
     session, emp, year, month, present, wfh, paid, lop, late, overtime, missing
 ):
-    if present is None:
-        pytest.skip("fill in the hand count from Excel first")
     r = monthly_summary(session, emp, year, month)
     assert r["present_days"] == present
     assert r["wfh_days"] == wfh
