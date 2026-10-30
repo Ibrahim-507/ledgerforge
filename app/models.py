@@ -1,3 +1,7 @@
+﻿from datetime import date, time
+from decimal import Decimal
+from sqlalchemy import Date, ForeignKey, Numeric, String, Text, Time
+from sqlalchemy.orm import Mapped, mapped_column
 """Database models: one SQLAlchemy class per table."""
 from sqlalchemy import (
     Boolean,
@@ -191,4 +195,4 @@ class LeaveBalance(Base):
     sl_balance: Mapped[Decimal] = mapped_column(Numeric(5, 1))
     el_used_fy: Mapped[Decimal] = mapped_column(Numeric(5, 1))
     el_balance: Mapped[Decimal] = mapped_column(Numeric(5, 1))
-    pending_days: Mapped[Decimal] = mapped_column(Numeric(5, 1))c   
+    pending_days: Mapped[Decimal] = mapped_column(Numeric(5, 1))
