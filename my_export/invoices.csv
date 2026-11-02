@@ -1,0 +1,1 @@
+invoice_id,invoice_number,client_id,invoice_date,due_date,service_line_account,currency,subtotal,gst_rate_percent,gst_amount,total_amount,amount_paid,balance_due,status,last_payment_date,po_number,carried_in_from_prior_period,created_by,created_at,ledger_entry_id

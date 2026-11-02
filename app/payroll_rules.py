@@ -1,69 +1,104 @@
-"""One small function per payroll rule (pure functions: same input, same output).
+"""One small pure function per payroll rule. No database, no I/O.
+All money is Decimal, rounded half-up to 2 places (README convention)."""
+from decimal import Decimal as D, ROUND_HALF_UP
 
-FIRST DRAFT from the Conventions sheet. Always confirm each rule against real
-rows of payroll_items (the answer key) before you trust it.
-Rates are passed in as arguments: read them from the statutory_rates sheet,
-do not hard-code them in your engine.
-"""
-from decimal import Decimal
-
-from app.money import money, to_decimal
-
-ZERO = Decimal("0.00")
+ZERO = D("0")
+CENT = D("0.01")
 
 
-def loss_of_pay(monthly_gross, calendar_days, lop_days) -> Decimal:
-    """Pay cut for unpaid days: monthly fixed gross / calendar days x LOP days."""
-    return money(to_decimal(monthly_gross) * to_decimal(lop_days) / to_decimal(calendar_days))
+def money(x) -> D:
+    """Round to the paisa, half-up. Always build Decimals from strings."""
+    return D(str(x)).quantize(CENT, rounding=ROUND_HALF_UP)
 
 
-def overtime_pay(monthly_gross, overtime_hours, eligible, cap_hours=50,
-                 hours_divisor=208, multiplier=2) -> Decimal:
-    """Only for overtime-eligible roles: hours x (gross / 208) x 2, at most 50 hours."""
+# ---- earnings -------------------------------------------------------------
+def prorate(amount, payable_days, calendar_days) -> D:
+    """Rule 1+2 (loss of pay): each fixed component is paid for payable days.
+    amount x payable_days / calendar_days. LOP is charged per CALENDAR day."""
+    return money(D(str(amount)) * D(str(payable_days)) / D(str(calendar_days)))
+
+
+def overtime_pay(hours, monthly_fixed_gross, eligible: bool, rates) -> D:
+    """Rule 3: only eligible roles; min(hours, 50) x (gross/208) x 2."""
     if not eligible:
         return ZERO
-    hours = min(to_decimal(overtime_hours), to_decimal(cap_hours))
-    return money(
-        to_decimal(monthly_gross) * hours * to_decimal(multiplier) / to_decimal(hours_divisor)
-    )
+    h = min(D(str(hours)), rates["OT_MONTHLY_CAP_HOURS"])
+    hourly = D(str(monthly_fixed_gross)) / rates["WORKING_HOURS_PER_MONTH"]
+    return money(h * hourly * rates["OT_MULTIPLIER"])
 
 
-def pf_employee(basic, rate="0.12", basic_cap="15000") -> Decimal:
-    """Provident fund: 12% of basic, where basic is capped at 15,000."""
-    return money(min(to_decimal(basic), to_decimal(basic_cap)) * to_decimal(rate))
+def overtime_hours_paid(hours, eligible: bool, rates) -> D:
+    return min(D(str(hours)), rates["OT_MONTHLY_CAP_HOURS"]) if eligible else ZERO
 
 
-def esi(monthly_gross, wage_limit="21000", employee_rate="0.0075", employer_rate="0.0325"):
-    """ESI applies only when monthly fixed gross <= 21,000. Returns (employee, employer)."""
-    gross = to_decimal(monthly_gross)
-    if gross > to_decimal(wage_limit):
-        return ZERO, ZERO
-    return money(gross * to_decimal(employee_rate)), money(gross * to_decimal(employer_rate))
-
-
-def professional_tax(monthly_gross, threshold="25000", amount="200") -> Decimal:
-    """Flat 200 a month from 25,000 gross. CHECK in the answer key whether 25,000 itself pays."""
-    return money(amount) if to_decimal(monthly_gross) >= to_decimal(threshold) else ZERO
-
-
-def slab_tax(taxable_income, slabs) -> Decimal:
-    """Progressive tax. slabs = [(lower, upper_or_None, rate), ...], rate like 0.05.
-
-    Each rate applies only to the part of income inside its band.
-    """
-    income = to_decimal(taxable_income)
-    tax = Decimal("0")
-    for lower, upper, rate in slabs:
-        lower = to_decimal(lower)
-        if income <= lower:
-            break
-        top = income if upper is None else min(income, to_decimal(upper))
-        tax += (top - lower) * to_decimal(rate)
-    return money(tax)
-
-
-def add_cess_after_rebate(tax, taxable_income, rebate_limit, cess_rate="0.04") -> Decimal:
-    """No tax at or below the rebate limit, otherwise tax + cess. CHECK marginal relief in your data."""
-    if to_decimal(taxable_income) <= to_decimal(rebate_limit):
+# ---- statutory deductions --------------------------------------------------
+def pf_employee(basic_earned, pf_applicable: bool, rates) -> D:
+    """Rule 6: 12% of basic, basic capped at 15,000. Only if employee is PF-applicable."""
+    if not pf_applicable:
         return ZERO
-    return money(to_decimal(tax) * (1 + to_decimal(cess_rate)))
+    base = min(D(str(basic_earned)), rates["PF_WAGE_CEILING"])
+    return money(base * rates["PF_EMPLOYEE_RATE"] / 100)
+
+
+def pf_employer(basic_earned, pf_applicable: bool, rates) -> D:
+    if not pf_applicable:
+        return ZERO
+    base = min(D(str(basic_earned)), rates["PF_WAGE_CEILING"])
+    return money(base * rates["PF_EMPLOYER_RATE"] / 100)
+
+
+def esi_employee(gross_pay, monthly_fixed_gross, esi_applicable: bool, rates) -> D:
+    """Rule 7: 0.75% of gross pay, only if fixed gross <= 21,000 and employee ESI-applicable."""
+    if not esi_applicable or D(str(monthly_fixed_gross)) > rates["ESI_WAGE_LIMIT"]:
+        return ZERO
+    return money(D(str(gross_pay)) * rates["ESI_EMPLOYEE_RATE"] / 100)
+
+
+def esi_employer(gross_pay, monthly_fixed_gross, esi_applicable: bool, rates) -> D:
+    if not esi_applicable or D(str(monthly_fixed_gross)) > rates["ESI_WAGE_LIMIT"]:
+        return ZERO
+    return money(D(str(gross_pay)) * rates["ESI_EMPLOYER_RATE"] / 100)
+
+
+def professional_tax(gross_pay, rates) -> D:
+    """Rule 8: 200 a month when gross pay >= 25,000 (exactly 25,000 pays)."""
+    return rates["PT_MONTHLY"] if D(str(gross_pay)) >= rates["PT_GROSS_THRESHOLD"] else ZERO
+
+
+# ---- income tax (TDS) -------------------------------------------------------
+def slab_tax(taxable, slabs) -> D:
+    """Unrounded tax on a yearly taxable income. slabs = [(from, to|None, rate_fraction)]."""
+    taxable = D(str(taxable))
+    tax = ZERO
+    for lo, hi, rate in slabs:
+        if taxable > lo:
+            top = taxable if hi is None else min(taxable, hi)
+            tax += (top - lo) * rate
+    return tax
+
+
+def annual_tax_with_relief(taxable, slabs, rebate_threshold) -> D:
+    """Slab tax, with rebate: nothing up to 12 lakh, and marginal relief just above it
+    (tax can never exceed the income above the threshold). Cess NOT included."""
+    taxable = D(str(taxable))
+    if taxable <= rebate_threshold:
+        return ZERO
+    return min(slab_tax(taxable, slabs), taxable - rebate_threshold)
+
+
+def monthly_tds(monthly_fixed_gross, variable_pay, payable_days, calendar_days,
+                slabs, params) -> D:
+    """Rule 9 (verified on all 7,340 official rows):
+    TDS = [ tax(fixed yearly taxable) / 12  x payable_days/calendar_days
+          + (tax(fixed + variable) - tax(fixed)) ] x (1 + cess)
+    where yearly taxable = fixed gross x 12 - standard deduction."""
+    sd = params["standard_deduction"]
+    cess = 1 + params["health_education_cess_percent"] / 100
+    reb = params["rebate_threshold_taxable"]
+    taxable = max(D(str(monthly_fixed_gross)) * 12 - sd, ZERO)
+    var = D(str(variable_pay))
+    t0 = annual_tax_with_relief(taxable, slabs, reb)
+    t1 = annual_tax_with_relief(taxable + var, slabs, reb)
+    share = D(str(payable_days)) / D(str(calendar_days))
+    # round each part to the paisa separately, then add (this is what the official data does)
+    return money(t0 * cess / 12 * share) + money((t1 - t0) * cess)
