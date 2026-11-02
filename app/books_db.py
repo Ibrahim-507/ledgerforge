@@ -76,6 +76,19 @@ CREATE TABLE IF NOT EXISTS invoice_payments(
   payment_id TEXT PRIMARY KEY, invoice_id TEXT NOT NULL REFERENCES invoices(invoice_id),
   payment_date TEXT NOT NULL, amount TEXT NOT NULL, payment_mode TEXT, reference_no TEXT,
   received_by TEXT, ledger_entry_id TEXT);
+CREATE TABLE IF NOT EXISTS vendors(
+  vendor_id TEXT PRIMARY KEY, vendor_name TEXT NOT NULL, primary_expense_account INTEGER,
+  payment_terms_days INTEGER NOT NULL DEFAULT 30, city TEXT, gst_registration TEXT, is_active TEXT NOT NULL DEFAULT 'Y');
+
+CREATE TABLE IF NOT EXISTS expenses(
+  expense_id TEXT PRIMARY KEY, expense_date TEXT NOT NULL, category_account INTEGER NOT NULL,
+  vendor_id TEXT NOT NULL REFERENCES vendors(vendor_id), bill_reference TEXT, description TEXT,
+  department_id TEXT, amount_excl_gst TEXT NOT NULL, gst_rate_percent TEXT NOT NULL, gst_amount TEXT NOT NULL,
+  total_amount TEXT NOT NULL, due_date TEXT, paid_date TEXT,
+  status TEXT NOT NULL DEFAULT 'SUBMITTED',          -- SUBMITTED -> APPROVED -> PAID   (or REJECTED)
+  payment_mode TEXT, submitted_by TEXT NOT NULL, approved_by TEXT,
+  ledger_entry_id TEXT, payment_ledger_entry_id TEXT, rejected_reason TEXT);
+CREATE INDEX IF NOT EXISTS ix_exp_vendor ON expenses(vendor_id, expense_date);
 """
 
 
