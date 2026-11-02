@@ -1,7 +1,8 @@
 from fastapi import FastAPI
+from app.routers import payslips
 
 
-from .routers import departments, employees, salary
+from .routers import departments, employees, salary, payslips
 
 app = FastAPI(
     title="LedgerForge API",
@@ -18,3 +19,4 @@ def health():
 app.include_router(departments.router)
 app.include_router(employees.router)
 app.include_router(salary.router)
+app.include_router(payslips.router)
