@@ -26,3 +26,12 @@ def check3_receivable_equals_open_invoices(conn, as_of=None):
     r = conn.execute(f"SELECT dsum(balance_due) b FROM invoices WHERE status IN ({q})", OPEN).fetchone()
     inv = dec(r["b"])
     return {"ok": ledger == inv, "ledger_1100": fmt(ledger), "open_invoices": fmt(inv), "difference": fmt(ledger - inv)}
+
+
+def check4_payables_equal_unpaid_bills(conn, as_of=None):
+    """Check 4: ledger 2001 Accounts Payable == sum of total_amount of APPROVED (approved, not yet paid) bills."""
+    from app.ledger import account_balance
+    ledger = account_balance(conn, 2001, as_of)
+    r = conn.execute("SELECT dsum(total_amount) b FROM expenses WHERE status='APPROVED'").fetchone()
+    bills = dec(r["b"])
+    return {"ok": ledger == bills, "ledger_2001": fmt(ledger), "unpaid_bills": fmt(bills), "difference": fmt(ledger - bills)}
