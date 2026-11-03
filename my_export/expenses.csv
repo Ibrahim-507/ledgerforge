@@ -1,0 +1,1 @@
+expense_id,expense_date,category_account,vendor_id,bill_reference,description,department_id,amount_excl_gst,gst_rate_percent,gst_amount,total_amount,due_date,paid_date,status,payment_mode,submitted_by,approved_by,ledger_entry_id,payment_ledger_entry_id,rejected_reason
