@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS journal_entries(
   source_id TEXT, status TEXT NOT NULL DEFAULT 'POSTED', total_debit TEXT NOT NULL,
   total_credit TEXT NOT NULL, reversal_of_source_id TEXT, created_by TEXT, created_at TEXT);
 CREATE UNIQUE INDEX IF NOT EXISTS ux_je_source ON journal_entries(source_type, source_id)
-  WHERE source_type IN ('PAYROLL_RUN','INVOICE','INVOICE_PAYMENT','REVERSAL');
+  WHERE source_type IN ('PAYROLL_RUN','SALARY_PAYMENT','INVOICE','INVOICE_PAYMENT','EXPENSE','EXPENSE_PAYMENT','REVERSAL');
 
 CREATE TABLE IF NOT EXISTS journal_lines(
   line_id TEXT PRIMARY KEY, entry_id TEXT NOT NULL REFERENCES journal_entries(entry_id),
@@ -89,6 +89,26 @@ CREATE TABLE IF NOT EXISTS expenses(
   payment_mode TEXT, submitted_by TEXT NOT NULL, approved_by TEXT,
   ledger_entry_id TEXT, payment_ledger_entry_id TEXT, rejected_reason TEXT);
 CREATE INDEX IF NOT EXISTS ix_exp_vendor ON expenses(vendor_id, expense_date);
+
+CREATE TABLE IF NOT EXISTS payroll_runs(
+  run_id TEXT PRIMARY KEY, period_start TEXT NOT NULL, period_end TEXT NOT NULL, pay_date TEXT,
+  employees_paid INTEGER, total_gross TEXT, total_deductions TEXT, total_net TEXT,
+  total_employer_contributions TEXT, total_employer_cost TEXT,
+  status TEXT NOT NULL DEFAULT 'DRAFT',      -- DRAFT -> PROCESSED -> APPROVED (posted) -> PAID ; APPROVED -> REVERSED
+  run_by TEXT, approved_by TEXT, created_at TEXT, approved_at TEXT,
+  idempotency_key TEXT NOT NULL UNIQUE,       -- the same month can never create/post twice
+  journal_entry_id TEXT, calculation_version TEXT, payment_entry_id TEXT, error_message TEXT);
+
+CREATE TABLE IF NOT EXISTS payroll_items(
+  payroll_item_id TEXT PRIMARY KEY, run_id TEXT NOT NULL REFERENCES payroll_runs(run_id),
+  employee_id TEXT NOT NULL, period_start TEXT, period_end TEXT, department_id TEXT, role_id TEXT,
+  calendar_days INTEGER, days_employed INTEGER, lop_days REAL, payable_days REAL, monthly_fixed_gross TEXT,
+  basic TEXT, hra TEXT, conveyance TEXT, medical TEXT, special_allowance TEXT, earned_fixed_pay TEXT,
+  overtime_hours_paid REAL, overtime_pay TEXT, variable_pay TEXT, variable_pay_type TEXT, gross_pay TEXT,
+  pf_employee TEXT, esi_employee TEXT, professional_tax TEXT, tds TEXT, other_deductions TEXT,
+  total_deductions TEXT, net_pay TEXT, pf_employer TEXT, esi_employer TEXT, employer_cost TEXT, calculation_note TEXT,
+  UNIQUE(run_id, employee_id));
+CREATE INDEX IF NOT EXISTS ix_pi_run ON payroll_items(run_id);
 """
 
 

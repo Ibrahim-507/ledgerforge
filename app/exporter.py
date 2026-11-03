@@ -4,7 +4,7 @@ import csv
 from pathlib import Path
 
 TABLES = ["chart_of_accounts", "journal_entries", "journal_lines", "clients", "invoices",
-          "invoice_items", "invoice_payments"]
+          "invoice_items", "invoice_payments", "vendors", "expenses", "payroll_runs", "payroll_items"]
 
 
 def export_tables(conn, out_dir):
