@@ -14,6 +14,7 @@ import calendar
 from datetime import date, datetime, timedelta
 from decimal import Decimal as D
 import pandas as pd
+from app import tax_config
 from app.books_db import dec, fmt, next_id
 from app.ledger import LedgerError, create_journal_entry, reverse_entry, _to_date
 
@@ -86,6 +87,10 @@ def process_run(conn, source, run_id) -> dict:
     if run["status"] != "DRAFT":
         raise RunError(f"Only a DRAFT run can be processed; {run_id} is {run['status']}")
     start, end = _to_date(run["period_start"]), _to_date(run["period_end"])
+    rules = tax_config.load_rules(conn)              # tax and statutory rules come from the database (Task 14)
+    if rules:
+        source.rates, source.params, source.slabs = rules
+    rules_ver = tax_config.rules_version(conn)
     ctx = source.items[(source.items.period_start == pd.Timestamp(start))].set_index("employee_id")
     roster = _roster(source, start, end)
     missing = sorted(roster - set(ctx.index))
@@ -111,8 +116,9 @@ def process_run(conn, source, run_id) -> dict:
             tot["gross"] += p.gross_pay; tot["ded"] += p.total_deductions; tot["net"] += p.net_pay
             tot["er"] += p.pf_employer + p.esi_employer; tot["cost"] += p.employer_cost
         conn.execute("UPDATE payroll_runs SET status='PROCESSED', employees_paid=?, total_gross=?, total_deductions=?, total_net=?, "
-                     "total_employer_contributions=?, total_employer_cost=?, error_message=NULL WHERE run_id=?",
-                     (len(results), fmt(tot["gross"]), fmt(tot["ded"]), fmt(tot["net"]), fmt(tot["er"]), fmt(tot["cost"]), run_id))
+                     "total_employer_contributions=?, total_employer_cost=?, error_message=NULL, calculation_version=? WHERE run_id=?",
+                     (len(results), fmt(tot["gross"]), fmt(tot["ded"]), fmt(tot["net"]), fmt(tot["er"]), fmt(tot["cost"]),
+                      f"{CALC_VERSION}/rules-v{rules_ver}", run_id))
         conn.commit()
     except Exception:
         conn.rollback()

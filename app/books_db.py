@@ -109,11 +109,29 @@ CREATE TABLE IF NOT EXISTS payroll_items(
   total_deductions TEXT, net_pay TEXT, pf_employer TEXT, esi_employer TEXT, employer_cost TEXT, calculation_note TEXT,
   UNIQUE(run_id, employee_id));
 CREATE INDEX IF NOT EXISTS ix_pi_run ON payroll_items(run_id);
+
+CREATE TABLE IF NOT EXISTS users(
+  user_id TEXT PRIMARY KEY, employee_id TEXT, username TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,                  -- scrypt hash with a random salt. Never the password itself.
+  role TEXT NOT NULL CHECK (role IN ('ADMIN','HR','EMPLOYEE')),
+  is_active TEXT NOT NULL DEFAULT 'Y', mfa_enabled TEXT DEFAULT 'N', last_login_at TEXT, created_at TEXT);
+
+-- Task 14: tax and statutory rules live in DATA, not code. Every change is logged in rule_changes.
+CREATE TABLE IF NOT EXISTS tax_slabs(
+  slab_id TEXT PRIMARY KEY, regime TEXT NOT NULL DEFAULT 'NEW', financial_year TEXT NOT NULL,
+  income_from TEXT NOT NULL, income_to TEXT, rate_percent TEXT NOT NULL, effective_from TEXT, note TEXT);
+CREATE TABLE IF NOT EXISTS tax_parameters(parameter TEXT PRIMARY KEY, value TEXT NOT NULL, note TEXT);
+CREATE TABLE IF NOT EXISTS statutory_rates(
+  parameter TEXT PRIMARY KEY, value TEXT NOT NULL, unit TEXT, note TEXT, effective_from TEXT);
+CREATE TABLE IF NOT EXISTS rule_changes(
+  change_id INTEGER PRIMARY KEY AUTOINCREMENT, changed_at TEXT NOT NULL, changed_by TEXT NOT NULL,
+  rule_type TEXT NOT NULL, rule_key TEXT NOT NULL, field TEXT NOT NULL, old_value TEXT, new_value TEXT, reason TEXT NOT NULL);
 """
 
 
-def connect(path=":memory:") -> sqlite3.Connection:
-    conn = sqlite3.connect(path)
+def connect(path=":memory:", check_same_thread=True) -> sqlite3.Connection:
+    """check_same_thread=False is needed when a web server hands one connection between worker threads."""
+    conn = sqlite3.connect(path, check_same_thread=check_same_thread)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.create_aggregate("dsum", 1, _DSum)
