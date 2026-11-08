@@ -14,9 +14,10 @@ class Rule:
     note: str = ""
 
 
-PUBLIC = {("POST", "/auth/login")}
+PUBLIC = {("POST", "/auth/login"), ("GET", "/health"), ("GET", "/")}     # login, health check, the login page
 
 RULES: dict[tuple[str, str], Rule] = {
+    
     ("GET", "/auth/me"): Rule(ALL, note="your own profile"),
     # departments
     ("GET", "/departments"): Rule(ALL),

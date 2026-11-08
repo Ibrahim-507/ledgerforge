@@ -151,8 +151,9 @@ def test_a_route_with_no_rule_is_denied_by_default():
     assert decide("GET", "/brand-new-route", {}, None)[0] == 401                   # anonymous learns nothing
 
 
-def test_only_login_is_public_and_every_rule_names_real_roles():
-    assert PUBLIC == {("POST", "/auth/login")}
+def test_only_login_health_and_the_login_page_are_public_and_every_rule_names_real_roles():
+    assert PUBLIC == {("POST", "/auth/login"), ("GET", "/health"), ("GET", "/")}
+    assert decide("GET", "/health", {}, None) is None and decide("GET", "/", {}, None) is None
     assert decide("POST", "/auth/login", {}, None) is None
     for key, rule in RULES.items():
         assert rule.roles and rule.roles <= {"ADMIN", "HR", "EMPLOYEE"}, key
