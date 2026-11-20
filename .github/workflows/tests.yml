@@ -1,3 +1,4 @@
+
 # Run on every push and pull request.
 name: tests
 
@@ -8,40 +9,71 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+
+    env:
+      DATABASE_URL: sqlite:///./ledgerforge-ci.db
+      DATA_DIR: data
+      LEDGERFORGE_SECRET_KEY: ci-only-test-key-0123456789-abcdefghijklmnop
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
+
       - name: Install production and test dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements-prod.txt
           python -m pip install "pytest>=8.0" "pytest-cov>=5.0" "httpx>=0.27" "PyYAML>=6.0"
+
       - name: Prepare test data
         run: |
           if [ -d seed ]; then
-            cp -r seed data
+            mkdir -p data
+            cp -r seed/. data/
           else
-            echo "seed directory is missing"
+            echo "ERROR: seed directory is missing"
             exit 1
           fi
+
+      - name: Create database tables
+        run: |
+          python -m alembic upgrade head
+
+      - name: Load CSV data into database
+        run: |
+          python -m scripts.load_data
+
+      - name: Verify attendance data
+        run: |
+          python -c "from app.database import SessionLocal; from app.models import Attendance; from sqlalchemy import select, func; s=SessionLocal(); n=s.scalar(select(func.count()).select_from(Attendance)); print(f'Attendance records loaded: {n}'); assert n > 0; s.close()"
+
       - name: Tests with coverage
-        run: python -m pytest -q --cov=app --cov-report=term-missing
-        env:
-          LEDGERFORGE_SECRET_KEY: ci-only-test-key-0123456789-abcdefghijklmnop
+        run: |
+          python -m pytest -q --cov=app --cov-report=term-missing
 
   image:
     runs-on: ubuntu-latest
     needs: test
+
     steps:
       - uses: actions/checkout@v4
+
       - name: Build the image
         run: docker build -t ledgerforge:ci .
+
       - name: No secret or database inside the image
         run: |
           docker run --rm --entrypoint sh ledgerforge:ci -c '
-            for f in /app/.env /app/.secret_key; do test ! -e "$f" || { echo "FOUND $f"; exit 1; }; done
-            test -z "$(find /app /var/lib/ledgerforge -name "*.sqlite*" 2>/dev/null)" || { echo "database inside image"; exit 1; }
-            echo "image is clean"'
+            for f in /app/.env /app/.secret_key; do
+              test ! -e "$f" || { echo "FOUND $f"; exit 1; }
+            done
+            test -z "$(find /app /var/lib/ledgerforge -name "*.sqlite*" 2>/dev/null)" || {
+              echo "database inside image"
+              exit 1
+            }
+            echo "image is clean"
+          '
