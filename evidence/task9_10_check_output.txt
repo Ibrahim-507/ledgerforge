@@ -1,0 +1,54 @@
+=== A. Official books loaded into my schema ===
+Check 1 (every entry balances): {'ok': True, 'entries': 2524, 'unbalanced': [], 'total_debit': '5298104813.57', 'total_credit': '5298104813.57'}
+Check 3 (receivable = open invoices): {'ok': True, 'ledger_1100': '139394278.00', 'open_invoices': '139394278.00', 'difference': '0.00'}
+Bank balance 30 Sep 2026: 290962361.45
+
+=== B. Receivables list, top 3 clients ===
+CL-002 BlueRiver Logistics Ltd          owes      17671562.00  (6 invoices)
+CL-016 Triveni Steel Industries         owes      14464440.00  (4 invoices)
+CL-008 Coromandel Auto Components       owes      14211212.00  (5 invoices)
+Hand check straight from invoices.csv: {'CL-002': 17671562, 'CL-016': 14464440, 'CL-008': 14211212}
+
+=== C. My payroll posting vs official journal entries (all 18 runs) ===
+18/18 payroll runs post exactly like the official entries
+Check 1 on my own ledger: {'ok': True, 'entries': 18, 'unbalanced': [], 'total_debit': '861586392.42', 'total_credit': '861586392.42'}
+
+=== D. Sample journal entry (April 2025 payroll, first lines) ===
+JE-000001 | 2025-04-30 | Payroll posting PR-2025-04
+Acct  Account name                                 Debit          Credit
+------------------------------------------------------------------------
+5001  Salaries & Wages                         479009.00            0.00
+5004  Employer PF Contribution                   1800.00            0.00
+5001  Salaries & Wages                       16290509.35            0.00
+5003  Incentives & Bonus                      4898545.62            0.00
+5004  Employer PF Contribution                 239053.78            0.00
+5001  Salaries & Wages                        3344341.97            0.00
+5003  Incentives & Bonus                      1445150.70            0.00
+5004  Employer PF Contribution                  34200.00            0.00
+5001  Salaries & Wages                        5580434.22            0.00
+5003  Incentives & Bonus                      1795213.02            0.00
+5004  Employer PF Contribution                  86168.76            0.00
+5001  Salaries & Wages                        4326528.17            0.00
+5003  Incentives & Bonus                      1494522.12            0.00
+5004  Employer PF Contribution                  64829.53            0.00
+5001  Salaries & Wages                        1184662.19            0.00
+5003  Incentives & Bonus                       466312.02            0.00
+5004  Employer PF Contribution                  18814.47            0.00
+5001  Salaries & Wages                        2312976.66            0.00
+5002  Overtime Expense                          60401.62            0.00
+5003  Incentives & Bonus                       622395.12            0.00
+5004  Employer PF Contribution                  70818.12            0.00
+5005  Employer ESI Contribution                  4317.71            0.00
+5001  Salaries & Wages                        1124252.49            0.00
+5002  Overtime Expense                          32991.98            0.00
+5003  Incentives & Bonus                       472362.90            0.00
+5004  Employer PF Contribution                  22935.69            0.00
+5001  Salaries & Wages                        1918679.23            0.00
+5002  Overtime Expense                          37139.83            0.00
+5003  Incentives & Bonus                       641344.80            0.00
+5004  Employer PF Contribution                  23827.53            0.00
+... 13 more lines
+------------------------------------------------------------------------
+TOTAL                                        53363392.08     53363392.08
+
+Exported my tables to my_export/ ->  python verify_ledgerforge.py checks --data my_export/

@@ -1,0 +1,12 @@
+wrote payroll_results.csv (7340 rows)
+
+gross_pay          mismatches: 0
+pf_employee        mismatches: 0
+esi_employee       mismatches: 0
+professional_tax   mismatches: 0
+tds                mismatches: 0
+total_deductions   mismatches: 0
+net_pay            mismatches: 0
+employer_cost      mismatches: 0
+
+Rows matching on every column: 7340 / 7340 (100.00%)

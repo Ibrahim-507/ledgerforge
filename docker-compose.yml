@@ -1,0 +1,69 @@
+x-app-env: &app-env
+  LEDGERFORGE_SECRET_KEY: ${LEDGERFORGE_SECRET_KEY:?Set LEDGERFORGE_SECRET_KEY in .env}
+  DEMO_PASSWORD: ${DEMO_PASSWORD:?Set DEMO_PASSWORD in .env}
+  DATABASE_URL: postgresql+psycopg2://ledgerforge:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/ledgerforge
+  CELERY_BROKER_URL: redis://redis:6379/0
+  CELERY_RESULT_BACKEND: redis://redis:6379/1
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ledgerforge
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ledgerforge
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ledgerforge -d ledgerforge"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  api:
+    build: .
+    image: ledgerforge:1.0.0-rc1
+    environment: *app-env
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+    volumes:
+      - books:/var/lib/ledgerforge
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    image: ledgerforge:1.0.0-rc1
+    command: ["celery", "-A", "app.worker.celery_app", "worker", "--loglevel=INFO", "--concurrency=1"]
+    healthcheck:
+      disable: true
+    environment: *app-env
+    volumes:
+      - books:/var/lib/ledgerforge
+    depends_on:
+      api:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  books:
+
+
