@@ -1,0 +1,11 @@
+# LedgerForge is a Python/Docker backend (FastAPI + PostgreSQL + Redis/Celery) that
+# cannot run on Netlify. Netlify publishes a static documentation site built from
+# README.md and docs/. Building from site/ keeps Netlify from installing the heavy
+# Python requirements, which is where previous deploys failed.
+[build]
+  base = "site"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
