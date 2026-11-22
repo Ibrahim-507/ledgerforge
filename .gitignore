@@ -24,3 +24,7 @@ requirements.old.txt
 *.db-shm
 *.sqlite-wal
 *.sqlite-shm
+
+# Editor swap files
+*.swp
+*.swo
