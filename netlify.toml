@@ -1,0 +1,6 @@
+# LedgerForge is a FastAPI backend (Postgres/Redis/Celery) that runs via Docker,
+# not on Netlify. Netlify only publishes the small static page in /public so the
+# repo root (source code, payroll CSVs, etc.) is never served as public files.
+[build]
+  publish = "public"
+  command = "echo 'Static landing page only; the API runs via Docker'"
